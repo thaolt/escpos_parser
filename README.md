@@ -21,7 +21,7 @@ For a more detailed example, please refer to the provided example code.
 
 ## License
 
-Copyright 2024 @ thaolt@songphi.com https://github.com/thaolt/escpos_parser
+Copyright 2024 @ thaolt@songphi.com - https://github.com/thaolt/escpos_parser
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
