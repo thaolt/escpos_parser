@@ -285,6 +285,7 @@ void escpos_vec_token_free(escpos_vec_token_t token_list)
                 free(token->data);
                 token->data = NULL;
             }
+            free(token);
         }
         token_len = escpos_vec_token_size(token_list);
     }
