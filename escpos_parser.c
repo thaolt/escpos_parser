@@ -237,9 +237,9 @@ void escpos_vec_token_free(escpos_vec_token_t token_list)
                 free(token->data);
                 token->data = NULL;
             }
+            free(token);
         }
         token_len = escpos_vec_token_size(token_list);
-
     }
     if (token_list->arr) free(token_list->arr);
     token_list->arr = NULL;
@@ -253,8 +253,8 @@ void escpos_specs_free(escpos_cmd_specs_t *cs)
     HASH_ITER(hh, ct->nodes, current_node, tmp) {
         escpos_specs_free(current_node);
         HASH_DEL(ct->nodes, current_node);
-        free(current_node);
     }
     ct->nodes_size = 0;
+    free(ct);
 }
 
