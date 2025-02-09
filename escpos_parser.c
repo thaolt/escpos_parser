@@ -32,6 +32,10 @@ struct escpos_ctree_node_t {
 
 unsigned char *te_data = NULL;
 
+
+int calculate_cmd_data_length(escpos_cmd_t** cmd, const unsigned char *data);
+
+
 char * escpos_strdup(const char *str) {
     if (str == NULL) return NULL;
     size_t len = strlen(str);
@@ -40,9 +44,6 @@ char * escpos_strdup(const char *str) {
     memcpy(x,str,len+1); /* copy the string into the new buffer */
     return x;
 }
-
-int caculate_cmd_data_length(escpos_cmd_t** cmd, unsigned char *data);
-
 
 escpos_cmd_specs_t *escpos_specs_init()
 {
@@ -145,7 +146,7 @@ unsigned int escpos_parse(escpos_vec_token_t* token_list, escpos_cmd_specs_t** c
                         while (data[l] != 0 && l < datalen) l++;
                         last_token->data_len += l - i;
                     } else {
-                        last_token->data_len = caculate_cmd_data_length(&(last_token->cmd), &(data[i+1]));
+                        last_token->data_len = calculate_cmd_data_length(&(last_token->cmd), &(data[i+1]));
                     }
 
                     // move global data index to after datalen
@@ -195,10 +196,15 @@ double _escpos_lcexpr_data_func(double i) {
     return ret;
 }
 
-int caculate_cmd_data_length(escpos_cmd_t** cmd, unsigned char* data)
+int calculate_cmd_data_length(escpos_cmd_t** cmd, const unsigned char* data)
 {
     if (!(*cmd)->lcexpr) return 0;
-    te_data = data;
+    if (!data) return 0;
+
+    if (te_data) { free(te_data); te_data = NULL; }
+    te_data = (unsigned char *) malloc(strlen(data) + 1);
+    strcpy(te_data, data);
+    
     int err;
     unsigned int ret = 0;
     te_variable vars[] = {
