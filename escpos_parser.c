@@ -33,7 +33,7 @@ struct escpos_ctree_node_t {
 unsigned char *te_data = NULL;
 
 
-int calculate_cmd_data_length(escpos_cmd_t** cmd, const unsigned char *data);
+int calculate_cmd_data_length(escpos_cmd_t** cmd, const unsigned char *data, unsigned int datalen);
 
 
 char * escpos_strdup(const char *str) {
@@ -123,35 +123,42 @@ unsigned int escpos_parse(escpos_vec_token_t* token_list, escpos_cmd_specs_t** c
 
                 nodes = &(found_node->nodes);
 
-                while (*nodes != NULL && (*nodes)->nodes_size != 0 && i < datalen) {
+                while (*nodes != NULL && (*nodes)->nodes_size != 0 && i + 1 < datalen) {
                     sig = data[i+1];
                     found_node = NULL;
                     HASH_FIND_INT(*nodes, &sig, found_node);
-                    i++;
-                    if (found_node != NULL)
+                    if (found_node != NULL) {
+                        i++;
                         nodes = &(found_node->nodes);
-                    else
+                    } else {
                         break;
+                    }
                 }
 
-                if (found_node != NULL) {
+                if (found_node != NULL && found_node->cmd != NULL) {
                     last_token->cmd = found_node->cmd;
                     int siglen = strlen(last_token->cmd->signature);
+                    unsigned int avail = datalen - i - 1;
 
                     // copy data according to specs
                     if (last_token->cmd->fixed_length > 0) {
                         last_token->data_len = last_token->cmd->fixed_length - siglen;
                     } else if (last_token->cmd->nul_terminated) {
-                        unsigned int l = i;
-                        while (data[l] != 0 && l < datalen) l++;
-                        last_token->data_len += l - i;
+                        unsigned int l = i + 1;
+                        while (l < datalen && data[l] != 0) l++;
+                        last_token->data_len = l - (i + 1);
                     } else {
-                        last_token->data_len = calculate_cmd_data_length(&(last_token->cmd), &(data[i+1]));
+                        last_token->data_len = calculate_cmd_data_length(&(last_token->cmd), &(data[i+1]), avail);
                     }
 
-                    // move global data index to after datalen
+                    // clamp to what is actually left in the input
+                    if (last_token->data_len > avail)
+                        last_token->data_len = avail;
+
+                    // move global data index to after datalen;
+                    // always allocate so handlers can safely read data[0]
+                    last_token->data = calloc(last_token->data_len + 1, 1);
                     if (last_token->data_len > 0) {
-                        last_token->data = malloc(last_token->data_len);
                         memcpy(last_token->data, &data[i+1], last_token->data_len);
                         i += last_token->data_len;
                     }
@@ -196,14 +203,16 @@ double _escpos_lcexpr_data_func(double i) {
     return ret;
 }
 
-int calculate_cmd_data_length(escpos_cmd_t** cmd, const unsigned char* data)
+int calculate_cmd_data_length(escpos_cmd_t** cmd, const unsigned char* data, unsigned int datalen)
 {
     if (!(*cmd)->lcexpr) return 0;
-    if (!data) return 0;
+    if (!data || datalen == 0) return 0;
 
     if (te_data) { free(te_data); te_data = NULL; }
-    te_data = (unsigned char *) malloc(strlen(data) + 1);
-    strcpy(te_data, data);
+    te_data = (unsigned char *) malloc(datalen + 1);
+    if (!te_data) return 0;
+    memcpy(te_data, data, datalen);
+    te_data[datalen] = 0;
     
     int err;
     unsigned int ret = 0;
